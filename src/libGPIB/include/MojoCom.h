@@ -16,14 +16,14 @@ class MojoCom : public I2CCom {
         ~MojoCom();
 
         int enableI2C();
-        int writeI2C(unsigned id, unsigned addr, unsigned *data, unsigned bytes);
-        int readI2C(unsigned id, unsigned addr, unsigned *data, unsigned bytes);
+        int writeI2C(unsigned id, unsigned addr, char *data, unsigned bytes);
+        int readI2C(unsigned id, unsigned addr, char *data, unsigned bytes);
     protected:
     private:
         SerialCom *m_com;
 
-        int writeReg(unsigned reg, unsigned val);
-        int readReg(unsigned reg, unsigned &val);
+        int writeReg(unsigned reg, char val);
+        int readReg(unsigned reg, char &val);
 
 };
 

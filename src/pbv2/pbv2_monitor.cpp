@@ -1,9 +1,14 @@
+#include <memory>
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
 #include <sys/stat.h>
 #include <dirent.h>
+
+#ifdef FTDI
+#include "FTDICom.h"
+#endif
 
 #include "Logger.h"
 #include "MojoCom.h"
@@ -13,6 +18,7 @@
 #include "AgilentPs.h"
 #include "Keithley24XX.h"
 
+
 loglevel_e loglevel = logINFO;
 
 int main(int argc, char* argv[]) {
@@ -20,7 +26,7 @@ int main(int argc, char* argv[]) {
   // Get settings from the command line
   if (argc < 5) {
     log(logERROR) << "Not enough parameters!";
-    log(logERROR) << "Useage: " << argv[0] << " TESTNAME <Mojo> <BK85XX> <GPIB>";
+    log(logERROR) << "Usage: " << argv[0] << " TESTNAME <Mojo/FTDI> <BK85XX> <GPIB>";
     return -1;
   }
 
@@ -28,6 +34,14 @@ int main(int argc, char* argv[]) {
   std::string mojoDev = argv[2];
   std::string bkDev = argv[3];
   std::string gpibDev = argv[4];
+
+#ifndef FTDI
+  if(mojoDev=="FTDI")
+    {
+      log(logERROR) << "FTDI support not enabled.";
+      return -1;
+    }
+#endif
 
   //
   // Create log directory if it does not exist
@@ -71,8 +85,16 @@ int main(int argc, char* argv[]) {
   //dc.turnOn();
 
   log(logINFO) << " ... AMAC:";
-  MojoCom mojo(mojoDev);
-  AMAC amac(0, dynamic_cast<I2CCom*>(&mojo));
+  std::unique_ptr<I2CCom> i2c;
+#ifdef FTDI
+  if(mojoDev=="FTDI")
+    i2c.reset(new FTDICom());
+  else
+    i2c.reset(new MojoCom(mojoDev));
+#else
+  i2c.reset(new MojoCom(mojoDev));
+#endif
+  AMAC amac(0, i2c);
 
   log(logINFO) << "  ++Init";
   amac.write(AMACreg::BANDGAP_CONTROL, 10); //1.2V LDO output

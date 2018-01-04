@@ -1,8 +1,9 @@
 #include "AMAC.h"
 
-AMAC::AMAC(unsigned id, I2CCom *i2c) {
+AMAC::AMAC(unsigned id, std::unique_ptr<I2CCom>& i2c)
+  : m_i2c(std::move(i2c))
+{
     m_id = id;
-    m_i2c = i2c;
     m_i2c->enableI2C();
 }
 
@@ -15,9 +16,9 @@ int AMAC::read(AMACreg reg, unsigned &val){
 	switch(reg){
 		case AMACreg::STATUS_HV_ILOCK: 	return this->readBits(0,1,0, val);
 		case AMACreg::STATUS_LV_ILOCK: 	return this->readBits(0,1,1, val);
-		case AMACreg::STATUS_HV_WARN: 		return this->readBits(0,1,2, val);
-		case AMACreg::STATUS_LV_WARN: 		return this->readBits(0,1,3, val);
-		case AMACreg::STATUS_ID: 		return this->readBits(0,4,4, val);
+		case AMACreg::STATUS_HV_WARN: 	return this->readBits(0,1,2, val);
+		case AMACreg::STATUS_LV_WARN: 	return this->readBits(0,1,3, val);
+		case AMACreg::STATUS_ID: 	return this->readBits(0,4,4, val);
 		case AMACreg::VALUE_LEFT_CH0: 	return this->readBits(20,10,0, val);
 		case AMACreg::VALUE_LEFT_CH1: 	return this->readBits(21,10,2, val);
 		case AMACreg::VALUE_LEFT_CH2: 	return this->readBits(22,10,4, val);
@@ -242,14 +243,16 @@ int AMAC::write(AMACreg reg, unsigned val){
 //Works until up to 4 bytes
 int AMAC::readBits(unsigned startreg, unsigned num_bits, unsigned offset, unsigned &value){
 	int num_bytes = ((num_bits + offset -1) / 8) + 1;
-	unsigned* buf = new unsigned[num_bytes];
-	int temp;
+	char* buf = new char[num_bytes];
+
 	if(m_i2c->readI2C(m_id, startreg, buf, num_bytes)) return -1;	
-	temp = 0;
+	uint temp = 0;
 	for(int i = num_bytes - 1; i >= 0; i--){
+	  //std::cout << "a " << i << ": " << std::hex << +buf[i] << std::dec << std::endl;
 		temp <<= 8;
 		temp += (buf[i] & 0xFF);
 	}
+	//std::cout << "temp " << std::hex << temp << std::dec << std::endl;
 	value = (temp >> offset) & ((1 << num_bits) -1);
 	return 0;
 }
@@ -258,7 +261,7 @@ int AMAC::readBits(unsigned startreg, unsigned num_bits, unsigned offset, unsign
 //Read register, modify bits, write register
 int AMAC::writeBits(unsigned startreg, unsigned num_bits, unsigned offset, unsigned value){
 	int num_bytes = ((num_bits + offset -1) / 8) + 1;
-	unsigned* buf = new unsigned[num_bytes];
+	char* buf = new char[num_bytes];
 	int temp;
 	int mask = ((1 << num_bits) -1) << offset;
 	if(m_i2c->readI2C(m_id, startreg, buf, num_bytes)) return -1;	
